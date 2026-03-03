@@ -1,0 +1,58 @@
+# Nightly scan of the ofx-workflows GitHub org.
+# Discovers new repos and opens PRs to register them in the index.
+name: Scan Org
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml requests
+
+      - name: Discover new collections
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/scan-org.py
+
+      - name: Check for new files
+        id: changes
+        run: |
+          if [ -n "$(git diff --name-only)" ] || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create PR with new collections
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto/scan-org-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add collections/
+          git commit -m "chore: add newly discovered collections"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "Add newly discovered collections ($(date +%Y-%m-%d))" \
+            --body "Auto-discovered from the ofx-workflows org. Please review and merge." \
+            --base main \
+            --head "$BRANCH"

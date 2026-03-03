@@ -1,0 +1,53 @@
+# Build & validate the collection index on every push / PR.
+name: Build Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "collections/**"
+      - "scripts/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "collections/**"
+      - "scripts/**"
+  workflow_dispatch: # allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Build index.json
+        run: python scripts/build-index.py
+
+      - name: Show diff
+        run: git diff index.json || true
+
+      # On push to main, auto-commit the updated index.json
+      - name: Commit updated index.json
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "chore: rebuild index.json [skip ci]"
+          git push
+
+      # On PRs, just validate that index.json would be up to date
+      - name: Validate index.json is current
+        if: github.event_name == 'pull_request'
+        run: python scripts/build-index.py --check

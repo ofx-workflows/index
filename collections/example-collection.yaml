@@ -1,0 +1,8 @@
+name: example-collection
+description: "Example collection for testing the index"
+source: "https://github.com/ofx-workflows/example-collection"
+latest: "0.1.0"
+tags:
+  - example
+  - testing
+author: ofx-community
