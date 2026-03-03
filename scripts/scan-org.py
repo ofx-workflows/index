@@ -20,17 +20,28 @@ COLLECTIONS_DIR = Path(__file__).resolve().parent.parent / "collections"
 SKIP_REPOS = {"index", ".github"}  # repos that are not collections
 
 
-def get_org_repos() -> list[dict]:
-    """Fetch all public repos in the org (paginated)."""
+def _headers() -> dict[str, str]:
+    """Build request headers with optional auth token.
+
+    Works with both public and private orgs/repos.
+    """
     token = os.environ.get("GH_TOKEN", "")
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    return headers
 
+
+def get_org_repos() -> list[dict]:
+    """Fetch all repos in the org (paginated). Includes private repos when GH_TOKEN is set."""
     repos: list[dict] = []
     page = 1
     while True:
-        resp = requests.get(API, headers=headers, params={"per_page": 100, "page": page})
+        resp = requests.get(
+            API,
+            headers=_headers(),
+            params={"per_page": 100, "page": page, "type": "all"},
+        )
         resp.raise_for_status()
         data = resp.json()
         if not data:
@@ -54,23 +65,31 @@ def existing_names() -> set[str]:
 
 
 def fetch_manifest(repo_name: str, default_branch: str) -> dict | None:
-    """Try to fetch collection.yaml from the repo root."""
-    url = f"https://raw.githubusercontent.com/{ORG}/{repo_name}/{default_branch}/collection.yaml"
-    resp = requests.get(url, timeout=10)
+    """Try to fetch collection.yaml from the repo root via the API.
+
+    Uses the contents API which works for both public and private repos
+    when a token is provided.
+    """
+    url = (
+        f"https://api.github.com/repos/{ORG}/{repo_name}"
+        f"/contents/collection.yaml?ref={default_branch}"
+    )
+    resp = requests.get(url, headers=_headers(), timeout=10)
     if resp.status_code == 200:
-        return yaml.safe_load(resp.text) or {}
+        import base64
+
+        data = resp.json()
+        if "content" in data:
+            raw = base64.b64decode(data["content"]).decode()
+            return yaml.safe_load(raw) or {}
     return None
 
 
 def get_latest_tag(repo_name: str) -> str:
     """Return the latest tag name, or '' if none."""
-    token = os.environ.get("GH_TOKEN", "")
-    headers = {"Accept": "application/vnd.github+json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     resp = requests.get(
         f"https://api.github.com/repos/{ORG}/{repo_name}/tags",
-        headers=headers,
+        headers=_headers(),
         params={"per_page": 1},
     )
     if resp.status_code == 200:
@@ -101,6 +120,7 @@ def main() -> None:
             "latest": (manifest or {}).get("version", latest or "0.0.0"),
             "tags": (manifest or {}).get("tags", []),
             "author": (manifest or {}).get("author", "ofx-community"),
+            "private": repo.get("private", False),
         }
 
         out = COLLECTIONS_DIR / f"{name}.yaml"

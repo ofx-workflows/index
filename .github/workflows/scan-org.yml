@@ -26,7 +26,9 @@ jobs:
 
       - name: Discover new collections
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use a PAT with repo scope for private repo access;
+          # falls back to the default GITHUB_TOKEN (public repos only).
+          GH_TOKEN: ${{ secrets.ORG_PAT || secrets.GITHUB_TOKEN }}
         run: |
           python scripts/scan-org.py
 
@@ -42,7 +44,7 @@ jobs:
       - name: Create PR with new collections
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ORG_PAT || secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="auto/scan-org-$(date +%Y%m%d)"
           git config user.name "github-actions[bot]"

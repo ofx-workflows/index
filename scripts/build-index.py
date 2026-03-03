@@ -44,6 +44,7 @@ def load_entries() -> dict[str, dict]:
             "latest": data.get("latest", "0.0.0"),
             "tags": data.get("tags", []),
             "author": data.get("author", ""),
+            "private": data.get("private", False),
         }
 
     return entries
