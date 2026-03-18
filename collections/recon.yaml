@@ -1,0 +1,9 @@
+name: recon
+description: My recon workflow collection
+source: https://github.com/ofx-workflows/recon
+latest: 1.0.0
+tags:
+- recon
+- scanning
+author: ofx-community
+private: false
