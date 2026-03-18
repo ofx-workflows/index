@@ -109,7 +109,7 @@ def main() -> None:
         if name in SKIP_REPOS or name in known:
             continue
 
-        default_branch = repo.get("default_branch", "main")
+        default_branch = repo.get("default_branch", "master")
         manifest = fetch_manifest(name, default_branch)
         latest = get_latest_tag(name)
 
