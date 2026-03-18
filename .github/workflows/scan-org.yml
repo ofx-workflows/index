@@ -54,6 +54,7 @@ jobs:
           git commit -m "chore: add newly discovered collections"
           git push -u origin "$BRANCH"
           gh pr create \
+            --repo ofx-workflows/index \
             --title "Add newly discovered collections ($(date +%Y-%m-%d))" \
             --body "Auto-discovered from the ofx-workflows org. Please review and merge." \
             --base main \
