@@ -57,5 +57,5 @@ jobs:
             --repo ofx-workflows/index \
             --title "Add newly discovered collections ($(date +%Y-%m-%d))" \
             --body "Auto-discovered from the ofx-workflows org. Please review and merge." \
-            --base main \
+            --base master \
             --head "$BRANCH"
